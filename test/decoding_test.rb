@@ -5,11 +5,13 @@ class HTMLEntities::DecodingTest < Test::Unit::TestCase
 
   def setup
     @entities = [:xhtml1, :html4, :expanded].map{ |a| HTMLEntities.new(a) }
+    @tolerate_forgotten_octothorpes = false
   end
 
   def assert_decode(expected, input)
     @entities.each do |coder|
-      assert_equal expected, coder.decode(input)
+      result = coder.decode(input, tolerate_forgotten_octothorpes: @tolerate_forgotten_octothorpes)
+      assert_equal expected, result
     end
   end
 
@@ -30,6 +32,13 @@ class HTMLEntities::DecodingTest < Test::Unit::TestCase
     assert_decode '“', '&#8220;'
     assert_decode '…', '&#8230;'
     assert_decode ' ', '&#32;'
+  end
+
+  def test_should_decode_decimal_entities_with_forgotten_octothorpes
+    @tolerate_forgotten_octothorpes = true
+    assert_decode '“', '&8220;'
+    assert_decode '…', '&8230;'
+    assert_decode ' ', '&32;'
   end
 
   def test_should_decode_hexadecimal_entities

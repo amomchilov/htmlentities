@@ -1,8 +1,9 @@
 class HTMLEntities
   class Decoder #:nodoc:
-    def initialize(flavor)
+    def initialize(flavor, tolerate_forgotten_octothorpes: false)
       @flavor = flavor
       @map = HTMLEntities::MAPPINGS[@flavor]
+      @tolerate_forgotten_octothorpes = tolerate_forgotten_octothorpes
       @entity_regexp = entity_regexp
     end
 
@@ -21,18 +22,29 @@ class HTMLEntities
     end
 
   private
+
     def prepare(string) #:nodoc:
       string.to_s.encode(Encoding::UTF_8)
     end
 
     def entity_regexp
-      key_lengths = @map.keys.map{ |k| k.length }
+      min_key_length, max_key_length = @map.keys.map { |k| k.length }.minmax
+
       if @flavor == 'expanded'
         entity_name_pattern = '(?:b\.)?[a-z][a-z0-9]'
       else
         entity_name_pattern = '[a-z][a-z0-9]'
       end
-      /&(?:(#{entity_name_pattern}{#{key_lengths.min - 1},#{key_lengths.max - 1}})|#([0-9]{1,7})|#x([0-9a-f]{1,6}));/i
+
+      patterns = [
+        "(#{entity_name_pattern}{#{min_key_length - 1},#{max_key_length + 1}})", # Named entities
+        "##{@tolerate_forgotten_octothorpes ? "?" : ""}([0-9]{1,7})", # Numbered entities (decimal)
+        "#x([0-9a-f]{1,6})", # Numbered entities (hexidecimal)
+      ]
+
+      patterns_alternation = patterns.join("|")
+
+      /&(?:#{patterns_alternation});/i
     end
   end
 end
